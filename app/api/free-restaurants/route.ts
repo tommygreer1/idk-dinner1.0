@@ -29,6 +29,42 @@ const cuisineTerms: Record<string, string[]> = {
   Wings: ["chicken", "wings"],
 };
 
+const overpassEndpoints = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.nchc.org.tw/api/interpreter",
+];
+
+async function fetchOverpass(query: string) {
+  for (const endpoint of overpassEndpoints) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "IDK-Dinner/1.0",
+        },
+        body: new URLSearchParams({ data: query }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      if (Array.isArray(data?.elements)) return data;
+    } catch {
+      // Try the next free Overpass server.
+    }
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as RequestBody;
@@ -58,23 +94,16 @@ export async function POST(request: Request) {
     }
 
     const radiusMeters = Math.min(Math.max((body.radiusMiles || 10) * 1609, 1609), 48280);
-    const query = `[out:json][timeout:20];(node["amenity"~"restaurant|fast_food|cafe"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"restaurant|fast_food|cafe"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"restaurant|fast_food|cafe"](around:${radiusMeters},${latitude},${longitude}););out center tags;`;
+    const query = `[out:json][timeout:18];(node["amenity"~"restaurant|fast_food|cafe"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"restaurant|fast_food|cafe"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"restaurant|fast_food|cafe"](around:${radiusMeters},${latitude},${longitude}););out center tags;`;
 
-    const overpassResponse = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "IDK-Dinner/1.0",
-      },
-      body: new URLSearchParams({ data: query }),
-      cache: "no-store",
-    });
-
-    if (!overpassResponse.ok) {
-      return NextResponse.json({ error: "The free restaurant search is busy. Try again in a moment." }, { status: 503 });
+    const data = await fetchOverpass(query);
+    if (!data) {
+      return NextResponse.json(
+        { error: "The free restaurant servers are busy right now. Tap Pick a Restaurant again." },
+        { status: 503 },
+      );
     }
 
-    const data = await overpassResponse.json();
     const category = body.category || "Anything";
     const terms = cuisineTerms[category] || [];
 
@@ -83,6 +112,7 @@ export async function POST(request: Request) {
         const tags = element.tags || {};
         const name = tags.name;
         if (!name) return null;
+
         const cuisine = (tags.cuisine || "").toLowerCase();
         const searchable = `${name} ${cuisine} ${tags.description || ""}`.toLowerCase();
         const matchesCategory = category === "Anything" || terms.some((term) => searchable.includes(term));
@@ -111,7 +141,12 @@ export async function POST(request: Request) {
       .filter(Boolean);
 
     if (!restaurants.length) {
-      return NextResponse.json({ error: `No ${category === "Anything" ? "restaurants" : category + " restaurants"} were found in that area. Try a larger distance or choose Anything.` }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: `No ${category === "Anything" ? "restaurants" : category + " restaurants"} were found in that area. Try a larger distance or choose Anything.`,
+        },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json(restaurants[Math.floor(Math.random() * restaurants.length)]);
