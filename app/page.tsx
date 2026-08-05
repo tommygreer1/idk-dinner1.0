@@ -1,5 +1,6 @@
 import Link from "next/link";
 import MenuCard from "@/components/MenuCard";
+import IdkDinnerLogo from "@/components/IdkDinnerLogo";
 
 const actions = [
   {
@@ -13,7 +14,7 @@ const actions = [
     href: "/eat-out",
     emoji: "🍔",
     title: "Eat Out",
-    description: "Filter nearby restaurant choices or let us randomly choose one.",
+    description: "Use your location and let IDK randomly choose one nearby restaurant.",
     color: "bg-blue-500",
   },
   {
@@ -51,16 +52,16 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-amber-50 px-4 py-10 text-slate-900">
       <div className="mx-auto max-w-5xl">
         <section className="text-center">
-          <div className="text-7xl">🍽️</div>
-          <p className="mt-5 text-sm font-black uppercase tracking-[0.25em] text-orange-500">Dinner decided</p>
-          <h1 className="mt-2 text-5xl font-black tracking-tight sm:text-7xl">IDK Dinner</h1>
+          <div className="mx-auto w-full max-w-md">
+            <IdkDinnerLogo className="h-auto w-full" />
+          </div>
           <p className="mx-auto mt-4 max-w-2xl text-xl text-slate-600 sm:text-2xl">Stop asking. Start eating.</p>
           <p className="mx-auto mt-3 max-w-2xl text-slate-500">Cook at home, use the smoker, build a grocery list, or let the app choose where you eat.</p>
         </section>
 
         <section className="mt-12 grid gap-6 md:grid-cols-2">
           {actions.map((action) => (
-            <Link key={action.href} href={action.href} className="block focus:outline-none focus:ring-4 focus:ring-orange-200 rounded-3xl">
+            <Link key={action.href} href={action.href} className="block rounded-3xl focus:outline-none focus:ring-4 focus:ring-orange-200">
               <MenuCard emoji={action.emoji} title={action.title} description={action.description} color={action.color} />
             </Link>
           ))}
