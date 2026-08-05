@@ -29,7 +29,7 @@ Available equipment: ${(body.equipment || []).join(", ") || "stove and oven"}
 Ingredients already available: ${body.ingredients || "none listed"}
 Avoid completely: ${body.avoid || "nothing listed"}
 
-Return practical food normal families would actually eat. Respect every allergy, dislike, budget, time, and equipment limit. Return JSON only.`;
+Return practical food normal families would actually eat. Respect every allergy, dislike, budget, time, and equipment limit.`;
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -93,9 +93,15 @@ Return practical food normal families would actually eat. Respect every allergy,
     }
 
     const data = await response.json();
-    const outputText = data.output_text;
+    const outputText =
+      data.output_text ||
+      data.output
+        ?.flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item.content || [])
+        .find((item: { type?: string; text?: string }) => item.type === "output_text")
+        ?.text;
 
     if (!outputText) {
+      console.error("Empty OpenAI response:", JSON.stringify(data));
       return NextResponse.json({ error: "The AI returned an empty meal." }, { status: 502 });
     }
 
